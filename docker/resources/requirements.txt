@@ -1,0 +1,28 @@
+# numerics
+numpy
+scipy
+statsmodels
+pandas
+scikit-learn
+scikit-image
+cupy-cuda110
+optuna
+kaleido
+psutil
+casadi
+
+# plotting
+matplotlib
+seaborn
+
+# various
+sympy
+tabulate
+PyYAML
+h5py
+geopandas
+descartes
+tables
+imageio-ffmpeg
+plotly
+path
