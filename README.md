@@ -34,3 +34,11 @@ bash start_jupyter_server.sh
 
 Copy the prompted token and paste it in the corresponding field when entering the jupyter server. 
 The jupyter server can be accessed by entering `http://localhost:8889` in a web browser.
+
+## Connect running containers to VSCode
+To use a docker contain as a development environment, add the following extensions to your VSCode:
+
+1) docker:
+2) Dev Container
+3) SSH-remote
+4) WSL
