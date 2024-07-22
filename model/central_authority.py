@@ -53,28 +53,37 @@ class central_authority(distributed_repro_num):
             #TODO: we may add other privacy mechanisms if necessnary.
             raise ValueError("For current version of simulation, only bounded gaussian mechanism is allowed!")
         
+        # unpack the matrix
+        matrix = self.matrix
+
         # initialize privacypara object
         para = privacyPara(epsilon=epsilon,
                            sensitivity=sensitivity)
         
+        # Feed all nonzero entries to dp mechanism
+        mask = matrix != 0
+        values = matrix[mask]
+
         # Get private samples
-        private_samples = mechanism.sample_many(data=self.matrix.reshape(-1), 
+        private_samples = mechanism.sample_many(data=values, 
                                                 privacyPara=para, 
                                                 lb=lb, 
                                                 ub=ub, 
                                                 n=num_samples)
-        
+
         # initialize result list
         res = []
+        matrix_w_dp = np.zeros((matrix.shape[0], matrix.shape[1]))
         for s in private_samples:
-            res.append(distributed_repro_num(np.array(s).reshape([self.matrix.shape[0], self.matrix.shape[1]])))
+            matrix_w_dp[mask] = np.array(s)
+            res.append(distributed_repro_num(matrix_w_dp))
         
         return res
 
 if __name__ == "__main__":
     # For debug
     # Example reproduction matrix
-    example_matrix = np.array([[1,2,3],
+    example_matrix = np.array([[1,2,0],
                                [2,3,1],
                                [3,2,1]])
     matrix = central_authority(example_matrix)

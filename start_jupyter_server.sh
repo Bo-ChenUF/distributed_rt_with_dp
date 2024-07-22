@@ -2,8 +2,8 @@ dport=8889
 duser=python
 dpath=$PWD/docker
 gpus="--gpus all"
-dimage=distributed_r0
-dname=python-nvidia
+dimage=bchen351/distributed_r0
+dname=distributed_r0
 dcmd="jupyter lab --no-browser --ip 0.0.0.0"
 
 docker run --rm -it -p $dport:8888  \

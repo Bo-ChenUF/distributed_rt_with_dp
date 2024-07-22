@@ -147,8 +147,13 @@ def deltaC(privacyPara, variance, range2count, bound_l2_norm):
     prob['x'] = c
     prob['f'] = objective(c,range2count, math.sqrt(variance))
     prob['g'] = constraint_l2_norm
+
+    # Do not display
+    opts = {}
+    opts['ipopt.print_level'] = 0
+    opts['print_time'] = 0
     
-    F = nlpsol('F','ipopt',prob)
+    F = nlpsol('F','ipopt',prob, opts)
 
     sol = F(x0 = c0,
             lbx = np.zeros((num_seg,1)),

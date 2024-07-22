@@ -51,6 +51,9 @@ RUN apt update && cat apt.txt | xargs apt install -y
 # install nodejs
 RUN curl -sL https://deb.nodesource.com/setup_15.x | bash - && apt install -y nodejs
 
+# install the GUI backend tk
+#RUN sudo apt-get install python3-tk
+
 #############################
 ##### Install python packages
 #############################
