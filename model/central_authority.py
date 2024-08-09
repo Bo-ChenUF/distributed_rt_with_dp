@@ -17,7 +17,9 @@ class distributed_repro_num():
 
     def get_overall_repro_number(self) -> float:
         """ Return the overall reproduction number for all communities"""
+        
         return spectral_radius(self.matrix)
+        #return float(np.sum(self.matrix) / self.matrix.shape[0])
     
 class central_authority(distributed_repro_num):
     """ class of central authority which can add noise to distributed repro numbers"""

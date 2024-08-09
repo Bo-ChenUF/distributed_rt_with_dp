@@ -1,5 +1,7 @@
 import numpy as np
 
+
+
 exp_setting_fs = {
     'exp_name' : 'distributed_r0_french_school',
     
@@ -11,8 +13,8 @@ exp_setting_fs = {
         'epsilon_step' : 0.5,
         'sensitivity' : 0.01,
         'sample_size' : 10,
-        'lb' : 0,
+        'lb' : 0.01,
         'ub' : 3
     },
-
 }
+

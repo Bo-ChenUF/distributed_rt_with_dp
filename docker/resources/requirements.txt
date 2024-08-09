@@ -26,3 +26,4 @@ tables
 imageio-ffmpeg
 plotly
 path
+openpyxl

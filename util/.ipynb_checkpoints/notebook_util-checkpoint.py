@@ -65,7 +65,6 @@ def binary_search_beta(start, end, target, Rec_matrix_inv, contact_matrix):
     return mid
 
 def convert_col_name_to_datetime(df: pd.DataFrame) -> pd.DataFrame: 
-
     """
     Convert the column name to datetime format: %m/%d/%y
 
@@ -81,57 +80,14 @@ def convert_col_name_to_datetime(df: pd.DataFrame) -> pd.DataFrame:
         
         # if the column can be convert to datetime
         try:
-            t = col.to_pydatetime().date().strftime("%m/%d/%y")
+            t = datetime.datetime.strptime(str(col), "%m/%d/%y")
             rename_columns[col] = t
 
         # else, do nothing
-        except:
+        except ValueError:
             continue
 
     # rename columns
     df = df.rename(columns=rename_columns)
-    #print(rename_columns)
+
     return df
-
-def get_infected_population(df_confirmed_case: pd.DataFrame, recovery_day=14) -> pd.DataFrame:
-    """
-    Given the daily confirmed cases, find the infected populations at each day.
-
-    Input:
-        - df_confirmed_case: pandas dataframe of daily confirmed cases for each cluster
-        - recovery_day: The days required for a person to recover from a disease.
-
-    Output:
-        - res: pandas dataframe for infected population at each day for each cluster.
-    """
-    res = pd.DataFrame()
-    
-    for index, col in enumerate(df_confirmed_case.columns):
-        if index < recovery_day:
-            # for the first {recovery_day} days, 
-            # the accumulative infected number is the infected population at each day
-            res[col] = df_confirmed_case[col]
-        else:
-            # else, the infected population at each day is the current accumulative infected number
-            # subtract the accumulative infected number at {recovery_day} days before.
-            res[col] = df_confirmed_case[col].values - df_confirmed_case.iloc[:, index - recovery_day]
-
-    res = convert_col_name_to_datetime(res)
-    
-    return res
-    
-def remove_zero_population(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Remove the community with 0 population.
-
-    Input:
-        - df: pandas dataframe. 
-
-    Output:
-        - df_new: pandas dataframe with nonzero population 
-    """
-
-    df_new = df[df["population"] != 0].reset_index(drop=True)
-
-    return df_new
-

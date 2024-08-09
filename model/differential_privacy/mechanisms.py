@@ -151,6 +151,7 @@ class boundedMech(ABC):
             lb_list = [lb for _ in range(n)]
             ub_list = [ub for _ in range(n)]
             distribuition_para = self.computeDistParameter(privacyPara, lb_list, ub_list)
+            print(f"The distribution parameter is {distribuition_para}")
             
         return self.sample_many_with_distribution_para(data, distribuition_para, lb, ub, n)
         
