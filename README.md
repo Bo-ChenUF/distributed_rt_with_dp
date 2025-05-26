@@ -1,5 +1,7 @@
-# [The name of our paper]
-We will document the step we took to run the simulations. We may make another readme when this repository is public.
+# Scalable Distributed Reproduction Numbers of Network Epidemics with Differential Privacy
+Please find the paper: https://arxiv.org/abs/2501.18862.
+
+To run the experiments, please go to the notebooks folder and run all notebooks there.
 
 ## Prerequisites
 You can build a working environment using Docker.
