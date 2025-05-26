@@ -51,12 +51,10 @@ RUN apt update && cat apt.txt | xargs apt install -y
 # install nodejs
 RUN curl -sL https://deb.nodesource.com/setup_15.x | bash - && apt install -y nodejs
 
-# install the GUI backend tk
-#RUN sudo apt-get install python3-tk
-
 #############################
 ##### Install python packages
 #############################
+RUN pip install -U setuptools pip	# for cupy
 COPY resources/requirements.txt /tp/
 RUN pip install -r requirements.txt --no-cache-dir
 
@@ -72,10 +70,15 @@ RUN jupyter nbextension enable --py widgetsnbextension
 # needed otherwise bug when opening terminal from jupyter.
 ENV SHELL=/bin/bash
 
+# install the GUI backend tk
+RUN apt-get update && \
+      apt-get -y install sudo
+#RUN sudo apt-get install python3.8-tk
+
 #######################
 ##### add new sudo user
 #######################
-RUN apt install sudo
+# RUN apt install sudo
 ENV USERNAME python
 ENV GROUPNAME python
 

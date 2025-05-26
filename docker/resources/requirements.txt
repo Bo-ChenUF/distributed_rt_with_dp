@@ -5,11 +5,12 @@ statsmodels
 pandas
 scikit-learn
 scikit-image
-cupy-cuda110
+cupy-cuda12x
 optuna
 kaleido
 psutil
 casadi
+torch
 
 # plotting
 matplotlib

@@ -9,5 +9,6 @@ rep_num_logger = {
 # for second clustering
 second_cluster_logger = {
     'exp_name': 'second_cluster_exp',
+    'recovery_day' : 14,
     'n_cluster': 100
 }

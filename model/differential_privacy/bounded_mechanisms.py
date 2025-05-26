@@ -7,6 +7,9 @@ import numpy as np
 import collections
 from model.differential_privacy.mechanisms import boundedMech, privacyPara
 from casadi import *
+import torch
+import cupy
+from typing import Union
 
 #from util.logging_util import init_logger
 #logger = init_logger()
@@ -34,17 +37,43 @@ class boundedLaplaceMech(boundedMech):
         super().__init__()
     
     # overriding functions
-    def sample_one_with_distribution_para(self, data, distribuition_para, lb, ub):
-        temp = lb - 1
-        while (temp < lb or temp > ub):
-            temp = np.random.laplace(data, distribuition_para)
-        
-        return [temp]
+    def distribution(self, 
+                     data: np.ndarray, 
+                     distribuition_para: float,
+                     lb: list,
+                     ub: list):         
+        """
+        Draw one random sample
+        """
+        data_size = data.shape[0]
+        b_size = len(lb)
+        sample = []
+        lb_mat = []
+        ub_mat = []
 
-    def computeDistParameter(self, privacyPara, lb, ub):
+        for i in range(data_size):
+            for j in range(b_size):
+                if data[i] > lb[j] and data[i] <= ub[j]:
+                    lb_mat.append(lb[j])
+                    ub_mat.append(ub[j])
+
+
+        for i in range(data_size):
+            temp = lb_mat[i] - 1
+            while (temp < lb_mat[i] or temp > ub_mat[i]):
+                temp = np.random.laplace(data[i], distribuition_para)
+            sample.append(temp)
+        
+        return np.array(sample)
+
+    def computeDistParameter(self, 
+                             data: np.ndarray,
+                             privacyPara: privacyPara):
         epsilon = privacyPara.epsilon
         delta = privacyPara.delta
         sensitivity = privacyPara.sensitivity
+        lb = privacyPara.lb[0]
+        ub = privacyPara.ub[0]
 
         # initial condition
         b0 = sensitivity / (epsilon + math.log(1-delta))
@@ -112,7 +141,7 @@ def deltaC(privacyPara, variance, range2count, bound_l2_norm):
     ##### Use Casadi to find the optimal c
     ######################################
     # decision variable
-    c = SX.sym('c', num_seg, 1)
+    c = SX.sym('c', num_seg, 1) # type: ignore
 
     # upper bound of decision variable c
     ubx = []
@@ -127,7 +156,7 @@ def deltaC(privacyPara, variance, range2count, bound_l2_norm):
         c0.append((range[1] - range[0]) / 2)
 
         # update norm of c
-        norm_c += c[index] * count
+        norm_c += c[index] ** 2 * count
 
         # update upper bound of c
         ubx.append(range[1] - range[0])
@@ -164,6 +193,48 @@ def deltaC(privacyPara, variance, range2count, bound_l2_norm):
     c = sol['x']
     return -objective(c, range2count, math.sqrt(variance))
 
+def construct_bound_mat(data: np.ndarray,
+                        lb: list,
+                        ub: list):
+    """
+    Construct the lower bound matrix and upper bound matrix for data.
+    We use binary search.
+
+    Inputs:
+        - data: sensitive data.
+        - lb: list of possible lower bounds.
+        - ub: list of possible upper bounds.
+
+    Outpus:
+        - lb_mat: list, a lower bound matrix which is of the same size of data.
+        - up_mat: list, a upper bound matrix which is of the same size of data.
+    """
+    
+    if (len(lb) != len(ub)):
+        raise ValueError("The size of lower bound and upper should be the same!")
+
+    # we use binary search
+    n = len(lb)
+    lb_mat = []
+    ub_mat = []
+
+    for d in data:
+        # start binary search
+        start = 0
+        end = n - 1
+        while (start <= end):
+            mid = start + (end - start) // 2
+            if d > lb[mid] and d <= ub[mid]:
+                lb_mat.append(lb[mid])
+                ub_mat.append(ub[mid])
+                break
+            elif d <= lb[mid]:
+                end = mid - 1
+            elif d > ub[mid]:
+                start = mid + 1
+
+    return lb_mat, ub_mat
+
 ################################
 ##### Bounded Gaussian Mechanism
 ################################
@@ -171,29 +242,80 @@ class boundedGaussianMech(boundedMech):
     def __init__(self) -> None:
         super().__init__()
 
-    def sample_one_with_distribution_para(self, data, distribuition_para, lb, ub):
-        length = len(data)
+    def distribution_v1(self, 
+                     data: np.ndarray, 
+                     distribuition_para: float,
+                     lb: list,
+                     ub: list):
+        
+        data_size = data.shape[0]
         sample = []
+        lb_mat, ub_mat = construct_bound_mat(data=data,
+                                             lb=lb,
+                                             ub=ub)
 
-        try:
-            len(lb)
-            lb_list = lb
-            ub_list = ub
-        except:
-            lb_list = [lb for _ in range(length)]
-            ub_list = [ub for _ in range(length)]
-
-        for i in range(length):
-            temp = lb_list[i] - 1
-            while (temp < lb_list[i] or temp > ub_list[i]):
+        for i in range(data_size):
+            temp = lb_mat[i] - 1
+            while (temp < lb_mat[i] or temp > ub_mat[i]):
                 temp = np.random.normal(data[i], math.sqrt(distribuition_para))
             sample.append(temp)
 
+        return np.array(sample)
+    
+    def distribution(self, 
+                          data: np.ndarray, 
+                          distribuition_para: Union[float, np.ndarray],
+                          lb: list,
+                          ub: list):
+
+        if torch.cuda.is_available():
+            matrix = cupy
+        else:
+            matrix = np
+
+        lb_mat, ub_mat = construct_bound_mat(data=data,
+                                             lb=lb,
+                                             ub=ub)
+        
+        lb_mat = np.array(lb_mat)
+        ub_mat = np.array(ub_mat)
+        sample = lb_mat - 1.
+        while (np.any(sample < lb_mat) or np.any(sample >= ub_mat)):
+
+            # find the data that need to be resampled
+            tmp_data = data[(sample<lb_mat) | (sample>=ub_mat)]
+
+            # draw private samples (numpy multivariate normal)
+            if type(distribuition_para) == float:
+                tmp_private_data = matrix.random.multivariate_normal(tmp_data, math.sqrt(distribuition_para)*np.eye(tmp_data.shape[0]))
+            elif type(distribuition_para) == np.ndarray:
+                dist = distribuition_para[(sample<lb_mat) | (sample>=ub_mat)]
+                dist = dist[:, (sample<lb_mat) | (sample>=ub_mat)]
+                tmp_private_data = matrix.random.multivariate_normal(tmp_data, np.sqrt(dist))
+            else:
+                raise TypeError("Wrong type of distribution parameter!")
+
+            # put the samples
+            sample[(sample<lb_mat) | (sample>=ub_mat)] = tmp_private_data.get() # type:ignore
+        
         return sample
         
-    def computeDistParameter(self, privacyPara, lb, ub):
+    def computeDistParameter(self, 
+                             data: np.ndarray,
+                             privacyPara: privacyPara,
+                             tolerance: float = 0) -> float:
+        
         epsilon = privacyPara.epsilon
         sensitivity = privacyPara.sensitivity
+        delta = privacyPara.delta
+        
+        ###########################
+        ##### construct bound array
+        ###########################
+        lb, ub = construct_bound_mat(data=data,
+                                     lb=privacyPara.lb,
+                                     ub=privacyPara.ub)
+
 
         # first check how many segments we have in lb and ub
         range2count = compute_num_seg(lb, ub)
@@ -202,8 +324,8 @@ class boundedGaussianMech(boundedMech):
         #### now compute ||ub-lb||_2
         ############################
         bound_l2_norm = 0
-        for range,count in range2count.items():
-            bound_l2_norm += (range[1] - range[0]) * count
+        for r,count in range2count.items():
+            bound_l2_norm += (r[1] - r[0]) ** 2 * count
         bound_l2_norm = math.sqrt(bound_l2_norm)
 
         ##############################################################################
@@ -218,7 +340,7 @@ class boundedGaussianMech(boundedMech):
 
         intervalSize = (left + right) * 2
 
-        while(intervalSize > right - left):
+        while(intervalSize > right - left + tolerance):
             intervalSize = right - left
 
             variance = (left + right) / 2
@@ -228,20 +350,35 @@ class boundedGaussianMech(boundedMech):
                             range2count = range2count,
                             bound_l2_norm = bound_l2_norm)
             
-            fix_operator = ((bound_l2_norm + sensitivity/2) * sensitivity) / (epsilon-np.log(DeltaC))
+            if delta != 0:
+                fix_operator = ((bound_l2_norm + sensitivity/2) * sensitivity) / (epsilon-np.log(DeltaC)-np.log(delta))
+            else:
+                fix_operator = ((bound_l2_norm + sensitivity/2) * sensitivity) / (epsilon-np.log(DeltaC))
             
             if fix_operator >= variance:
                 left = variance
             else:
                 right = variance
 
-        return variance
+        return float(variance)                 # type: ignore
 
 
 if __name__ == '__main__':
-    gaussian = boundedGaussianMech()
-    privacyPara = privacyPara(epsilon=1, delta = 0.1, sensitivity=1)
-    print(gaussian.sample_one([1], privacyPara, [0] ,[2]))
-    print(gaussian.sample_many([1], privacyPara, [0] , [2], 10))
-    print(gaussian.sample_one_with_distribution_para([1], 0.01, [0], [2]))
-    print(gaussian.sample_many_with_distribution_para([16], 0.01, [0], [20], 10))
+    run_laplace = 0
+    run_gaussian = 1
+
+    if run_laplace:
+        laplace = boundedLaplaceMech()
+        privacyPara_laplace = privacyPara(epsilon=1, delta = 0.1, sensitivity=1, lb=[0], ub=[20])
+        print(laplace.sample(data = np.array([[1],[2]]), privacyPara=privacyPara_laplace, n=1)[0])
+        print(laplace.sample(data = np.array([[1,2], [3,4]]), privacyPara=privacyPara_laplace, n=10)[0])
+        print(laplace.sample_from_distribution(data = np.array([[1], [6]]), distribuition_para=0.01, lb=[0,10], ub=[10,20], n=1)[0])
+        print(laplace.sample_from_distribution(data = np.array([[1,16], [2,7]]), distribuition_para=0.01, lb=[0,10], ub=[10,20], n=10)[0])
+
+    if run_gaussian:
+        gaussian = boundedGaussianMech()
+        privacyPara_gaussian = privacyPara(epsilon=1, delta = 0.1, sensitivity=1, lb=[0,10], ub=[10,20])
+        print(gaussian.sample(data = np.array([[1.],[2.]]), privacyPara=privacyPara_gaussian, n=1)[0])
+        print(gaussian.sample(data = np.array([[1.,2.], [3.,4.]]), privacyPara=privacyPara_gaussian, n=10)[0])
+        print(gaussian.sample_from_distribution(data = np.array([[1.], [6.]]), distribuition_para=0.01, lb=[0,10], ub=[10,20], n=1)[0])
+        print(gaussian.sample_from_distribution(data = np.array([[1.,16.], [2.,7.]]), distribuition_para=0.01,lb=[0,10], ub=[10,20], n=10)[0])

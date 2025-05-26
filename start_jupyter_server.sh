@@ -8,9 +8,9 @@ dcmd="jupyter lab --no-browser --ip 0.0.0.0"
 
 docker run --rm -it -p $dport:8888  \
 -v "$(pwd)":/home/$duser/shared \
+-u $duser -h $dname --name $dname  \
 -v $dpath/resources/jupyter:/home/$duser/.jupyter \
 -v $dpath/resources/bashrc:/home/$duser/.bashrc \
 -w /home/$duser/shared \
 $gpus \
--u $duser -h $dname --name $dname  \
 $dimage $dcmd

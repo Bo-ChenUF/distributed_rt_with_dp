@@ -1,6 +1,6 @@
 import os
 
-def check_exist(name: str, type: str):
+def create_if_not_exist(name: str, type: str):
     """
     Check if a file or directory exists.
     
