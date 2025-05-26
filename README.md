@@ -1,7 +1,7 @@
 # Scalable Distributed Reproduction Numbers of Network Epidemics with Differential Privacy
 Please find the paper: https://arxiv.org/abs/2501.18862.
 
-To run the experiments, please go to the notebooks folder and run all notebooks there.
+To run the experiments, please go to the notebooks folder and run all notebooks there in order.
 
 ## Prerequisites
 You can build a working environment using Docker.
